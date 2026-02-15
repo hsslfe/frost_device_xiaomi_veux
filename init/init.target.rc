@@ -122,6 +122,10 @@ on boot
     chmod 0666 /mnt/vendor/persist/camera/rear_dc_cal_wu.bin
     chmod 0666 /data/vendor/camera/com.xiaomi.dcal.wu.data
 
+    # Dolby
+    mkdir /data/vendor/dolby 0770 media media
+    mkdir /data/vendor/multimedia 0775 system system
+
 #add perm for calib
     chmod 0777 /data/vendor/camera
 
