@@ -1,0 +1,77 @@
+diff --git a/res/values/cm_strings.xml b/res/values/cm_strings.xml
+index dc86e60..06d3efc 100644
+--- a/res/values/cm_strings.xml
++++ b/res/values/cm_strings.xml
+@@ -180,4 +180,10 @@
+      <!-- General -->
+      <string name="copied_to_clipboard">Copied to clipboard</string>
+      <string name="longpress_to_clipboard">Long-press to copy</string>
++
++    <!-- ReVanced -->
++    <string name="revan_toggle_title">ReVanced Integration</string>
++    <string name="revan_toggle_summary">Use ReVanced variants of YouTube and YT Music instead of stock apps</string>
++    <string name="revan_restart_to_apply">Restart to apply changes</string>
++
+ </resources>
+diff --git a/res/xml/apps.xml b/res/xml/apps.xml
+index af8b695..8624372 100644
+--- a/res/xml/apps.xml
++++ b/res/xml/apps.xml
+@@ -75,6 +75,13 @@
+             android:targetPackage="${applicationId}"/>
+     </Preference>
+ 
++   <SwitchPreferenceCompat
++        android:key="persist_revan_mod"
++        android:title="@string/revan_toggle_title"
++        android:summary="@string/revan_toggle_summary"
++        android:defaultValue="true" />
++
++
+ <Preference
+         android:key="gaming_mode"
+         android:title="@string/gaming_mode_title"
+diff --git a/src/com/android/settings/applications/AppDashboardFragment.java b/src/com/android/settings/applications/AppDashboardFragment.java
+index c795232..a51a4c2 100644
+--- a/src/com/android/settings/applications/AppDashboardFragment.java
++++ b/src/com/android/settings/applications/AppDashboardFragment.java
+@@ -31,6 +31,10 @@ import com.android.settings.search.BaseSearchIndexProvider;
+ import com.android.settings.widget.PreferenceCategoryController;
+ import com.android.settingslib.core.AbstractPreferenceController;
+ import com.android.settingslib.search.SearchIndexable;
++import android.os.SystemProperties;
++import android.widget.Toast;
++import androidx.preference.Preference;
++import androidx.preference.SwitchPreferenceCompat;
+ 
+ import java.util.ArrayList;
+ import java.util.Arrays;
+@@ -96,6 +100,28 @@ public class AppDashboardFragment extends DashboardFragment {
+         getSettingsLifecycle().addObserver(hibernatedAppsPreferenceController);
+     }
+ 
++     @Override
++    public void onStart() {
++        super.onStart();
++
++        final Preference pref = findPreference("persist_revan_mod");
++        if (pref instanceof SwitchPreferenceCompat) {
++            final SwitchPreferenceCompat toggle = (SwitchPreferenceCompat) pref;
++            boolean currentValue = SystemProperties.getBoolean("persist.sys.revan.mod", true);
++            toggle.setChecked(currentValue);
++            toggle.setOnPreferenceChangeListener((p, newVal) -> {
++                boolean enabled = (Boolean) newVal;
++                SystemProperties.set("persist.sys.revan.mod", enabled ? "true" : "false");
++                Toast.makeText(
++                        getContext(),
++                        R.string.revan_restart_to_apply,
++                        Toast.LENGTH_SHORT
++                ).show();
++                return true;
++            });
++        }
++    }
++
+     @VisibleForTesting
+     PreferenceCategoryController getAdvancedAppsPreferenceCategoryController() {
+         return use(AdvancedAppsPreferenceCategoryController.class);
