@@ -18,6 +18,9 @@ $(call inherit-product, vendor/bcr/bcr.mk)
 
 $(call inherit-product, vendor/revanced/products/revanced.mk) 
 
+PRODUCT_PRODUCT_PROPERTIES += \
+    ro.surface_flinger.uclamp.min=135
+
 # A/B
 $(call inherit-product, $(SRC_TARGET_DIR)/product/virtual_ab_ota/launch_with_vendor_ramdisk.mk)
 
