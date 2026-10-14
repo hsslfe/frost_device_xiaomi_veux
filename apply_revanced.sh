@@ -33,13 +33,13 @@ apply_patch() {
 }
 
 apply_patch frameworks/base \
-    device/xiaomi/rubyx/patches/0001-frameworks-base-Revanced-hide.patch
+    device/xiaomi/veux/patches/0001-frameworks-base-Revanced-hide.patch
 
 apply_patch packages/apps/Settings \
-    device/xiaomi/rubyx/patches/0002-settings-Revanced-toggle.patch
+    device/xiaomi/veux/patches/0002-settings-Revanced-toggle.patch
 
 apply_patch system/sepolicy \
-    device/xiaomi/rubyx/patches/0003-sepolicy-Revanced-property.patch
+    device/xiaomi/veux/patches/0003-sepolicy-Revanced-property.patch
 
 echo
 echo "========================================"
