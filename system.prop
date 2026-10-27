@@ -1,5 +1,2 @@
 # Audio service timeout
 audio.service.client_wait_ms=10000
-ro.product.marketname=Xiaomi 18 Pro Max
-ro.infinity.soc=Snapdragon 8 Elite Extreme Gen 6
-ro.infinity.camera=200MP + 200MP + 50MP
