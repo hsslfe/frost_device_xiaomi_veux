@@ -192,10 +192,6 @@ debug.sf.auto_latch_unsignaled=1
 debug.sf.disable_client_composition_cache=0
 debug.sf.enable_transaction_tracing=false
 
-# Blur
-debug.renderengine.blur_algorithm=kawase2
-persist.sys.renderengine.blur_algorithm=kawase2
-
 # Incremental FS
 ro.incremental.enable=true
 
