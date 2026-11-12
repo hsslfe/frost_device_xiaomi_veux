@@ -8,7 +8,7 @@
     <bool name="doze_display_state_supported">true</bool>
 
     <!-- Preferred max refresh rate at keyguard, if supported by the display. -->
-    <integer name="config_keyguardMaxRefreshRate">60</integer>
+    <integer name="config_keyguardMaxRefreshRate">120</integer>
 
     <!-- A path similar to frameworks/base/core/res/res/values/config.xml
       config_mainBuiltInDisplayCutout that describes a path larger than the exact path of a outer
