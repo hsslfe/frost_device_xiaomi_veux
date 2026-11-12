@@ -220,6 +220,8 @@ firmware_directories /vendor/firmware_mnt/image/
 /dev/msm_rotator          0660   system     system
 /dev/sdsprpc-smd          0660   system     system
 
+/sys/devices/platform/soc/*/*camera-flash* torch_strength 0666 cameraserver camera
+
 #permissions for audio
 /dev/wcd_dsp0_control     0660   system     audio
 /dev/wcd-dsp-glink        0660   system     audio

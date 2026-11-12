@@ -82,6 +82,7 @@ PRODUCT_PACKAGES += \
     android.hardware.camera.provider@2.4-service_64
 
 $(call soong_config_set_bool,camera,override_format_from_reserved,true)
+$(call soong_config_set,libcameraservice,ext_lib,libcameraservice_extension.veux)
 
 # DebugFS
 PRODUCT_SET_DEBUGFS_RESTRICTIONS := true
