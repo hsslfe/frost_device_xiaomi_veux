@@ -1,0 +1,130 @@
+// SPDX-License-Identifier: Apache-2.0
+/* Host ABI shim; the functions under test are extracted from cam_flash_dev.c. */
+#include <assert.h>
+#include <errno.h>
+#include <limits.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+#define PAGE_SIZE 4096
+#define CCI_MASTER 1
+#define CAMERA_SENSOR_I2C_TYPE_BYTE 1
+#define scnprintf snprintf
+enum { CAM_FLASH_STATE_INIT, CAM_FLASH_STATE_ACQUIRE, CAM_FLASH_STATE_CONFIG,
+       CAM_FLASH_STATE_START };
+struct mutex { bool locked; };
+struct cci_client { unsigned int sid; };
+struct camera_io_master { int master_type; struct cci_client *cci_client; };
+struct cam_flash_ctrl {
+    bool is_regulator_enabled;
+    int flash_state;
+    struct camera_io_master io_master_info;
+    struct mutex flash_mutex;
+};
+struct device { struct cam_flash_ctrl *data; };
+struct device_attribute { int unused; };
+struct cam_sensor_i2c_reg_array { unsigned int reg_addr, reg_data, delay, data_mask; };
+struct cam_sensor_i2c_reg_setting {
+    struct cam_sensor_i2c_reg_array *reg_setting;
+    unsigned int size, addr_type, data_type, delay;
+};
+static struct cam_flash_ctrl ctrl;
+static unsigned int mode = 2, current = 44;
+static int read_error, write_error, reads, writes;
+static void *dev_get_drvdata(struct device *dev) { return dev->data; }
+static void mutex_lock(struct mutex *m) { assert(!m->locked); m->locked = true; }
+static void mutex_unlock(struct mutex *m) { assert(m->locked); m->locked = false; }
+static int kstrtouint(const char *buf, unsigned int base, unsigned int *result) {
+    char *end;
+    unsigned long val;
+    if (*buf == '-') return -EINVAL;
+    errno = 0;
+    val = strtoul(buf, &end, base);
+    if (errno || end == buf || val > UINT_MAX || (*end && strcmp(end, "\n"))) return -EINVAL;
+    *result = val;
+    return 0;
+}
+static int camera_io_dev_read(struct camera_io_master *io, unsigned int addr,
+        unsigned int *data, int addr_type, int data_type) {
+    assert(ctrl.flash_mutex.locked);
+    assert(io == &ctrl.io_master_info);
+    assert(addr_type == 1 && data_type == 1);
+    ++reads;
+    if (read_error) return -read_error;
+    assert(addr == 1 || addr == 4);
+    *data = addr == 1 ? mode : current;
+    return 0;
+}
+static int camera_io_dev_write(struct camera_io_master *io,
+        struct cam_sensor_i2c_reg_setting *settings) {
+    assert(ctrl.flash_mutex.locked);
+    assert(io == &ctrl.io_master_info);
+    assert(settings->size == 1 && settings->addr_type == 1 && settings->data_type == 1);
+    assert(settings->delay == 0);
+    assert(settings->reg_setting->reg_addr == 4);
+    assert(settings->reg_setting->delay == 0 && settings->reg_setting->data_mask == 0);
+    ++writes;
+    if (write_error) return -write_error;
+    current = settings->reg_setting->reg_data;
+    return 0;
+}
+// FUNCTIONS_UNDER_TEST
+int main(void) {
+    struct cci_client cci = { .sid = 0x64 };
+    struct device dev = { .data = &ctrl };
+    char buf[PAGE_SIZE];
+    int before;
+    ctrl.io_master_info.master_type = CCI_MASTER;
+    ctrl.io_master_info.cci_client = &cci;
+    assert(torch_strength_show(&dev, NULL, buf) == 3 && !strcmp(buf, "44\n"));
+    assert(!reads);
+    assert(torch_strength_store(&dev, NULL, "1", 1) == -EBUSY);
+    assert(!writes);
+    ctrl.is_regulator_enabled = true;
+    ctrl.flash_state = CAM_FLASH_STATE_CONFIG;
+    for (int i = 0; i < 4; ++i) {
+        mode = i;
+        if (i != 2) assert(torch_strength_store(&dev, NULL, "1", 1) == -EBUSY);
+    }
+    mode = 2;
+    assert(torch_strength_store(&dev, NULL, "1", 1) == 1);
+    assert(torch_strength_show(&dev, NULL, buf) == 2 && !strcmp(buf, "1\n"));
+    ctrl.flash_state = CAM_FLASH_STATE_START;
+    assert(torch_strength_store(&dev, NULL, "44\n", 3) == 3);
+    assert(current == 44);
+    const char *invalid[] = {"0", "45", "127", "-1", "junk", "0x10", "4294967296"};
+    before = writes;
+    for (unsigned int i = 0; i < sizeof(invalid) / sizeof(invalid[0]); ++i)
+        assert(torch_strength_store(&dev, NULL, invalid[i], strlen(invalid[i])) == -EINVAL);
+    assert(writes == before);
+    cci.sid = 0x63;
+    assert(torch_strength_store(&dev, NULL, "1", 1) == -EOPNOTSUPP);
+    assert(writes == before);
+    cci.sid = 0x64;
+    ctrl.io_master_info.cci_client = NULL;
+    assert(torch_strength_store(&dev, NULL, "1", 1) == -EOPNOTSUPP);
+    ctrl.io_master_info.cci_client = &cci;
+    read_error = EIO;
+    assert(torch_strength_store(&dev, NULL, "1", 1) == -EIO);
+    assert(torch_strength_show(&dev, NULL, buf) == -EIO);
+    assert(writes == before);
+    read_error = 0;
+    write_error = EIO;
+    assert(torch_strength_store(&dev, NULL, "1", 1) == -EIO);
+    assert(current == 44);
+    write_error = 0;
+    mode = 0;
+    assert(torch_strength_show(&dev, NULL, buf) == 3 && !strcmp(buf, "44\n"));
+    ctrl.is_regulator_enabled = false;
+    ctrl.flash_state = CAM_FLASH_STATE_INIT;
+    before = reads;
+    assert(torch_strength_show(&dev, NULL, buf) == 3 && !strcmp(buf, "44\n"));
+    assert(reads == before);
+    dev.data = NULL;
+    assert(torch_strength_store(&dev, NULL, "1", 1) == -ENODEV);
+    assert(torch_strength_show(&dev, NULL, buf) == -ENODEV);
+    assert(!ctrl.flash_mutex.locked);
+}

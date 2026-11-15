@@ -22,6 +22,11 @@ Xiaomi POCO X4 Pro 5G / Redmi Note 11E Pro / Redmi Note 11 Pro 5G / Redmi Note 1
 
 ![Xiaomi POCO X4 Pro 5G / Redmi Note 11E Pro / Redmi Note 11 Pro 5G / Redmi Note 11 Pro+ 5G](https://raw.githubusercontent.com/Karan-Frost/images/refs/heads/main/veux.png "Xiaomi POCO X4 Pro 5G / Redmi Note 11E Pro / Redmi Note 11 Pro 5G / Redmi Note 11 Pro+ 5G")
 
+## Torch strength
+
+See [camera/README.md](camera/README.md) for the companion kernel change,
+required Lunaris framework patch, build steps and hardware verification.
+
 ## Copyright
 
 ```

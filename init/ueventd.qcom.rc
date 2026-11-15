@@ -506,3 +506,6 @@ firmware_directories /vendor/firmware_mnt/image/
 # Elliptic
 /dev/elliptic0                 0644   system       system
 /dev/elliptic1                 0644   system       system
+
+# Rear camera torch strength
+/sys/devices/platform/soc/5c1b000.qcom,cci0/5c1b000.qcom,cci0:qcom,camera-flash@0 torch_strength 0660 cameraserver cameraserver
