@@ -22,8 +22,6 @@ ro.vendor.audio.sdk.ssr=false
 vendor.audio.adm.buffering.ms=12
 vendor.audio.chk.cal.spk=2
 vendor.audio.chk.cal.us=2
-vendor.audio.dolby.ds2.enabled=false
-vendor.audio.dolby.ds2.hardbypass=false
 vendor.audio.feature.a2dp_offload.enable=true
 vendor.audio.feature.afe_proxy.enable=true
 vendor.audio.feature.anc_headset.enable=false
@@ -181,15 +179,19 @@ debug.sf.high_fps_late_app_phase_offset_ns=1000000
 debug.sf.high_fps_late_sf_phase_offset_ns=-4000000
 debug.sf.predict_hwc_composition_strategy=0
 debug.sf.treat_170m_as_sRGB=1
-persist.sys.sf.color_mode=7
+persist.sys.sf.color_mode=0
 persist.sys.sf.color_saturation=1.0
-persist.sys.sf.native_mode=258
+persist.sys.sf.native_mode=0
 ro.hardware.egl=adreno
 ro.hardware.vulkan=adreno
 ro.opengles.version=196610
 vendor.gralloc.disable_ubwc=0
 vendor.gralloc.secure_preview_buffer_format=420_sp
 vendor.gralloc.secure_preview_only=1
+
+# Blur
+debug.renderengine.blur_algorithm=kawase2
+persist.sys.renderengine.blur_algorithm=kawase2
 
 # Incremental FS
 ro.incremental.enable=true
