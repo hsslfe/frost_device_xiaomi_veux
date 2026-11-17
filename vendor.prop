@@ -255,3 +255,4 @@ ro.vendor.perf.framepacing.enable=1
 # HWUI Optimization
 debug.hwui.use_hint_manager=true
 debug.hwui.use_buffer_age=true
+debug.hwui.target_cpu_time_percent=50
