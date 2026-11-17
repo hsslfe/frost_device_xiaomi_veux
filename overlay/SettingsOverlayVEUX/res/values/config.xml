@@ -32,4 +32,8 @@
         <item>256</item> <!-- "Saturated" -->
         <item>258</item> <!-- "Vivid" -->
     </integer-array>
+
+    <!-- Show battery cycle count -->
+    <bool name="config_show_battery_cycle_count">true</bool>
+     
 </resources>
