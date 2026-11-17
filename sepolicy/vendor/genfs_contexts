@@ -1,3 +1,6 @@
+# Camera torch strength (rear LM36011 only)
+genfscon sysfs /devices/platform/soc/5c1b000.qcom,cci0/5c1b000.qcom,cci0:qcom,camera-flash@0/torch_strength u:object_r:vendor_sysfs_torch_strength:s0
+
 # Audio
 genfscon sysfs /module/aw882xx_dlkm/parameters/smartpa_type                        u:object_r:vendor_sysfs_audio:s0
 

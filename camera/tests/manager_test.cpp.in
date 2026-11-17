@@ -1,0 +1,186 @@
+// SPDX-License-Identifier: Apache-2.0
+/* Host shims for the real CameraProviderManager methods, not an Android build. */
+#include <algorithm>
+#include <atomic>
+#include <cassert>
+#include <cerrno>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <string>
+#include <vector>
+#define ALOGE(...) ((void)0)
+#define ALOGV(...) ((void)0)
+using status_t = int;
+constexpr int OK = 0, BAD_VALUE = -EINVAL, NAME_NOT_FOUND = -ENOENT;
+constexpr int DEAD_OBJECT = -EPIPE, INVALID_OPERATION = -ENOSYS;
+constexpr int ANDROID_FLASH_INFO_STRENGTH_DEFAULT_LEVEL = 1;
+constexpr int ANDROID_FLASH_INFO_STRENGTH_MAXIMUM_LEVEL = 2;
+constexpr int ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS = 3;
+template<class T> using sp = std::shared_ptr<T>;
+enum class IPCTransport { HIDL, AIDL, INVALID };
+struct HalCameraProvider {};
+struct HidlProviderInfo {};
+struct HidlHalCameraProvider {};
+struct AidlProviderInfo {};
+struct AidlHalCameraProvider {};
+static bool extensionAvailable = true, disappearOnHal;
+static int sysfsError, extValue = 44, extCalls;
+bool supportsTorchStrengthControlForCameraExt(const char* id) {
+    return extensionAvailable && std::string(id) == "0";
+}
+int32_t getTorchStrengthLevelExt() { return extValue; }
+int32_t getTorchMaxStrengthLevelExt() { return 44; }
+int32_t getTorchDefaultStrengthLevelExt() { return 44; }
+int32_t setTorchStrengthLevelCheckedExt(int32_t level, bool enabled) {
+    ++extCalls;
+    if (!extensionAvailable) return -ENOENT;
+    if (sysfsError) return sysfsError;
+    extValue = enabled ? level : 44;
+    return OK;
+}
+struct Metadata {
+    struct Entry { size_t count; struct { int32_t* i32; } data; };
+    std::map<int, std::vector<int32_t>> fields;
+    Entry find(int tag) {
+        auto& value = fields[tag];
+        return {value.size(), {value.data()}};
+    }
+    int update(int tag, const int32_t* data, size_t size) {
+        fields[tag].assign(data, data + size);
+        return OK;
+    }
+};
+class CameraProviderManager {
+public:
+    struct ProviderInfo {
+        IPCTransport transport = IPCTransport::HIDL;
+        IPCTransport getIPCTransport() { return transport; }
+        struct DeviceInfo3 {
+            struct Parent {
+                sp<ProviderInfo> value = std::make_shared<ProviderInfo>();
+                sp<ProviderInfo> promote() { return value; }
+            } mParentProvider;
+            std::string mId = "0";
+            bool flash = true, on = false;
+            std::atomic<int32_t> mTorchStrengthLevel{0};
+            int halOnError = 0, halOffError = 0, halCalls = 0;
+            Metadata mCameraCharacteristics;
+            bool hasFlashUnit() { return flash; }
+            int setTorchMode(bool enabled) {
+                ++halCalls;
+                int error = enabled ? halOnError : halOffError;
+                if (error) return error;
+                on = enabled;
+                if (disappearOnHal) extensionAvailable = false;
+                return OK;
+            }
+            int getTorchStrengthLevel(int32_t*) { return INVALID_OPERATION; }
+            int turnOnTorchWithStrengthLevel(int32_t) { return INVALID_OPERATION; }
+            int fixupTorchStrengthTags();
+        };
+    };
+    enum class DeviceMode { TORCH };
+    std::shared_ptr<ProviderInfo::DeviceInfo3> device = std::make_shared<ProviderInfo::DeviceInfo3>();
+    bool reference = false;
+    int providerStartError = 0;
+    mutable std::mutex mInterfaceMutex;
+    auto findDeviceInfoLocked(const std::string& id) const {
+        return id == device->mId ? device : nullptr;
+    }
+    void saveRef(DeviceMode, const std::string&, std::shared_ptr<HalCameraProvider>) { reference = true; }
+    void removeRef(DeviceMode, const std::string&) { reference = false; }
+    template<class P, class H> int setTorchModeT(sp<ProviderInfo>&,
+            std::shared_ptr<HalCameraProvider>* provider) {
+        *provider = std::make_shared<HalCameraProvider>();
+        return providerStartError;
+    }
+    int getTorchStrengthLevel(const std::string&, int32_t*);
+    int turnOnTorchWithStrengthLevel(const std::string&, int32_t);
+    bool shouldSkipTorchStrengthUpdate(const std::string&, int32_t) const;
+    int setTorchMode(const std::string&, bool);
+    int setTorchModeLocked(const std::string&, bool, int32_t);
+};
+// FUNCTIONS_UNDER_TEST
+int main() {
+    CameraProviderManager m;
+    int32_t value;
+    assert(m.getTorchStrengthLevel("0", nullptr) == BAD_VALUE);
+    assert(m.getTorchStrengthLevel("missing", &value) == NAME_NOT_FOUND);
+    assert(!m.shouldSkipTorchStrengthUpdate("missing", 44));
+    assert(m.getTorchStrengthLevel("0", &value) == OK && value == 44);
+    for (int level : {-1, 0, 45, 127})
+        assert(m.turnOnTorchWithStrengthLevel("0", level) == BAD_VALUE);
+    assert(m.device->halCalls == 0 && extCalls == 0);
+    assert(m.turnOnTorchWithStrengthLevel("0", 1) == OK);
+    assert(m.device->on && m.reference && extValue == 1);
+    assert(m.shouldSkipTorchStrengthUpdate("0", 1));
+    assert(m.setTorchMode("0", false) == OK);
+    assert(!m.device->on && extValue == 44);
+    assert(!m.shouldSkipTorchStrengthUpdate("0", 44));
+    assert(m.setTorchMode("0", true) == OK && extValue == 44);
+    assert(m.turnOnTorchWithStrengthLevel("0", 22) == OK && extValue == 22);
+    assert(m.setTorchMode("0", true) == OK && extValue == 22);
+
+    // HAL errors must not reach sysfs, and an existing active provider stays held.
+    int before = extCalls;
+    m.device->halOnError = -EBUSY;
+    assert(m.turnOnTorchWithStrengthLevel("0", 10) == -EBUSY);
+    assert(extCalls == before && m.reference && extValue == 22);
+    m.device->halOnError = 0;
+    sysfsError = -EIO;
+    assert(m.turnOnTorchWithStrengthLevel("0", 10) == -EIO);
+    assert(!m.device->on && !m.reference && m.device->mTorchStrengthLevel == 0);
+    sysfsError = 0;
+    m.device->halOnError = -EBUSY;
+    before = extCalls;
+    assert(m.turnOnTorchWithStrengthLevel("0", 10) == -EBUSY);
+    assert(extCalls == before && !m.reference);
+    m.device->halOnError = 0;
+    m.providerStartError = DEAD_OBJECT;
+    assert(m.turnOnTorchWithStrengthLevel("0", 10) == DEAD_OBJECT);
+    assert(extCalls == before && !m.reference);
+    m.providerStartError = 0;
+
+    // Even if the endpoint disappears after HAL activation, do not report success.
+    disappearOnHal = true;
+    assert(m.turnOnTorchWithStrengthLevel("0", 10) == -ENOENT);
+    assert(!m.device->on && !m.reference);
+    disappearOnHal = false;
+    extensionAvailable = true;
+    sysfsError = -EIO;
+    m.device->halOffError = -EIO;
+    assert(m.turnOnTorchWithStrengthLevel("0", 10) == -EIO);
+    assert(m.reference); // Keep the provider alive if rollback itself fails.
+    m.device->halOffError = 0;
+    sysfsError = 0;
+    assert(m.setTorchMode("0", false) == OK);
+    extValue = -EIO;
+    assert(m.getTorchStrengthLevel("0", &value) == -EIO);
+    extValue = 0;
+    assert(m.getTorchStrengthLevel("0", &value) == INVALID_OPERATION);
+    extValue = 44;
+
+    auto& d = *m.device;
+    assert(d.fixupTorchStrengthTags() == OK);
+    assert(d.mCameraCharacteristics.fields[ANDROID_FLASH_INFO_STRENGTH_DEFAULT_LEVEL][0] == 44);
+    assert(d.mCameraCharacteristics.fields[ANDROID_FLASH_INFO_STRENGTH_MAXIMUM_LEVEL][0] == 44);
+    assert(d.fixupTorchStrengthTags() == OK);
+    assert(d.mCameraCharacteristics.fields[ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS].size() == 2);
+    d.mId = "1";
+    d.mCameraCharacteristics.fields.clear();
+    assert(d.fixupTorchStrengthTags() == OK);
+    assert(d.mCameraCharacteristics.fields[ANDROID_FLASH_INFO_STRENGTH_MAXIMUM_LEVEL][0] == 1);
+    // Preserve native metadata on cameras not using the extension.
+    d.mCameraCharacteristics.fields[ANDROID_FLASH_INFO_STRENGTH_MAXIMUM_LEVEL] = {7};
+    assert(d.fixupTorchStrengthTags() == OK);
+    assert(d.mCameraCharacteristics.fields[ANDROID_FLASH_INFO_STRENGTH_MAXIMUM_LEVEL][0] == 7);
+    before = extCalls;
+    assert(m.turnOnTorchWithStrengthLevel("1", 2) == INVALID_OPERATION);
+    assert(extCalls == before);
+    d.mId = "0";
+    extensionAvailable = false;
+    assert(m.turnOnTorchWithStrengthLevel("0", 2) == INVALID_OPERATION);
+    assert(extCalls == before);
+}

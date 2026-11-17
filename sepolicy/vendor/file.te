@@ -1,0 +1,2 @@
+# Dedicated attribute on the rear flash controller; no access to other registers.
+type vendor_sysfs_torch_strength, fs_type, sysfs_type;

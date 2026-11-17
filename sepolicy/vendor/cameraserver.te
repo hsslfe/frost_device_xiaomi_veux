@@ -1,0 +1,1 @@
+allow cameraserver vendor_sysfs_torch_strength:file { getattr open read write };
