@@ -111,9 +111,9 @@ echo 0 > /sys/devices/system/cpu/cpu6/core_ctl/enable
 
 # Setting b.L scheduler parameters
 echo 65 > /proc/sys/kernel/sched_downmigrate
-echo 71 > /proc/sys/kernel/sched_upmigrate
+echo 60 > /proc/sys/kernel/sched_upmigrate
 echo 85 > /proc/sys/kernel/sched_group_downmigrate
-echo 100 > /proc/sys/kernel/sched_group_upmigrate
+echo 85 > /proc/sys/kernel/sched_group_upmigrate
 echo 1 > /proc/sys/kernel/sched_walt_rotate_big_tasks
 echo 0 > /proc/sys/kernel/sched_coloc_busy_hysteresis_enable_cpus
 echo 0 > /proc/sys/kernel/sched_busy_hysteresis_enable_cpus
@@ -149,13 +149,13 @@ echo 691200 > /sys/devices/system/cpu/cpufreq/policy6/scaling_min_freq
 # Colocation V3 settings
 echo 680000 > /sys/devices/system/cpu/cpufreq/policy0/schedutil/rtg_boost_freq
 echo 0 > /sys/devices/system/cpu/cpufreq/policy6/schedutil/rtg_boost_freq
-echo 51 > /proc/sys/kernel/sched_min_task_util_for_boost
+echo 35 > /proc/sys/kernel/sched_min_task_util_for_boost
 echo 35 > /proc/sys/kernel/sched_min_task_util_for_colocation
 
 # sched_load_boost as -6 is equivalent to target load as 85. It is per cpu tunable.
 echo -6 > /sys/devices/system/cpu/cpu6/sched_load_boost
 echo -6 > /sys/devices/system/cpu/cpu7/sched_load_boost
-echo 85 > /sys/devices/system/cpu/cpufreq/policy6/schedutil/hispeed_load
+echo 70 > /sys/devices/system/cpu/cpufreq/policy6/schedutil/hispeed_load
 
 # configure input boost settings
 echo "0:1516800" > /sys/devices/system/cpu/cpu_boost/input_boost_freq
